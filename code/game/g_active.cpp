@@ -37,6 +37,10 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #define	SLOWDOWN_DIST	128.0f
 #define	MIN_NPC_SPEED	16.0f
 
+#ifdef AUTOAIM
+int g_lastFireTime = 0;
+#endif
+
 extern void VehicleExplosionDelay( gentity_t *self );
 extern qboolean Q3_TaskIDPending( gentity_t *ent, taskID_t taskType );
 extern void G_MaintainFormations(gentity_t *self);
@@ -1746,6 +1750,47 @@ static qboolean ClientCinematicThink( gclient_t *client ) {
 	return( qfalse );
 }
 
+#ifdef AUTOAIM
+/*
+================
+Sys_Milliseconds
+================
+*/
+int curtime;
+int	sys_timeBase;
+int Sys_Milliseconds (void)
+{
+	//struct timeval tp;
+	//struct timezone tzp;
+
+	//gettimeofday(&tp, &tzp);
+	
+	//if (!sys_timeBase)
+	//{
+	//	sys_timeBase = tp.tv_sec;
+	//	return tp.tv_usec/1000;
+	//}
+
+	//curtime = (tp.tv_sec - sys_timeBase)*1000 + tp.tv_usec/1000;
+
+	//LAvaPort
+	//try out higher resolution timer (not sure if we need this)
+	
+	struct timespec tp;
+	clock_gettime(CLOCK_MONOTONIC, &tp);
+	
+	if (!sys_timeBase)
+	{
+		sys_timeBase = tp.tv_sec;
+		return tp.tv_nsec/1000000;
+	}
+
+	curtime = (tp.tv_sec - sys_timeBase)*1000 + tp.tv_nsec/1000000;
+	
+	return curtime;
+}
+#endif
+
 
 /*
 ================
@@ -1800,6 +1845,11 @@ void ClientEvents( gentity_t *ent, int oldEventSequence ) {
 			fired = qtrue;
 #endif
 			FireWeapon( ent, qfalse );
+#ifdef AUTOAIM
+//			extern int Sys_Milliseconds();
+			if (ent->s.clientNum == 0)
+				g_lastFireTime = Sys_Milliseconds();
+#endif
 			break;
 
 		case EV_ALT_FIRE:
@@ -1810,6 +1860,10 @@ void ClientEvents( gentity_t *ent, int oldEventSequence ) {
 			fired = qtrue;
 #endif
 			FireWeapon( ent, qtrue );
+#ifdef AUTOAIM
+			if (ent->s.clientNum == 0)
+				g_lastFireTime = Sys_Milliseconds();
+#endif
 			break;
 
 		default:

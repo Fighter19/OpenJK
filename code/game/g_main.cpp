@@ -859,6 +859,17 @@ void G_GameSpawnRMGEntity(char *s)
 }
 //END GAMESIDE RMG
 
+#ifdef AUTOAIM
+extern int g_lastFireTime;
+int g_getLastFireTime() {
+		return g_lastFireTime;
+}
+extern short cg_crossHairStatus;
+short g_getCrossHairStatus(void) {
+		return cg_crossHairStatus;
+}
+#endif
+
 /*
 =================
 GetGameAPI
@@ -890,6 +901,11 @@ extern "C" Q_EXPORT game_export_t* QDECL GetGameAPI( game_import_t *import ) {
 
 	globals.RunFrame = G_RunFrame;
 	globals.ConnectNavs = G_ConnectNavs;
+        
+        #ifdef AUTOAIM
+	globals.GetLastFireTime = g_getLastFireTime;
+	globals.GetCrossHairStatus = g_getCrossHairStatus;
+	#endif
 
 	globals.ConsoleCommand = ConsoleCommand;
 	//globals.PrintEntClassname = PrintEntClassname;

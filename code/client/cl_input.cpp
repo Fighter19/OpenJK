@@ -526,6 +526,25 @@ void CL_JoystickMove( usercmd_t *cmd ) {
 CL_MouseMove
 =================
 */
+#ifdef AUTOAIM
+void CL_MouseClamp(int *x, int *y)
+{
+	float ax = Q_fabs(*x);
+	float ay = Q_fabs(*y);
+
+	ax = (ax-10)*(3.0f/45.0f) * (ax-10) * (Q_fabs(*x) > 10);
+	ay = (ay-10)*(3.0f/45.0f) * (ay-10) * (Q_fabs(*y) > 10);
+	if (*x < 0)
+		*x = -ax;
+	else
+		*x = ax;
+	if (*y < 0)
+		*y = -ay;
+	else
+		*y = ay;
+}
+#endif
+
 void CL_MouseMove( usercmd_t *cmd ) {
 	float	mx, my;
 	float	accelSensitivity;
@@ -533,6 +552,11 @@ void CL_MouseMove( usercmd_t *cmd ) {
 	const float	speed = static_cast<float>(frame_msec);
 	const float pitch = m_pitch->value;
 
+#ifdef AUTOAIM
+	const float mouseSpeedX = 0.06f;
+	const float mouseSpeedY = 0.05f;
+
+	#ifdef PANDORA
 	// allow mouse smoothing
 	if ( m_filter->integer ) {
 		mx = ( cl.mouseDx[0] + cl.mouseDx[1] ) * 0.5;
@@ -541,6 +565,46 @@ void CL_MouseMove( usercmd_t *cmd ) {
 		mx = cl.mouseDx[cl.mouseIndex];
 		my = cl.mouseDy[cl.mouseIndex];
 	}
+	#else
+	// allow mouse smoothing
+	if ( m_filter->integer ) {
+		mx = ( cl.mouseDx[0] + cl.mouseDx[1] ) * 0.5f * frame_msec * mouseSpeedX;
+		my = ( cl.mouseDy[0] + cl.mouseDy[1] ) * 0.5f * frame_msec * mouseSpeedY;
+	} else {
+		int ax = cl.mouseDx[cl.mouseIndex];
+		int ay = cl.mouseDy[cl.mouseIndex];
+		CL_MouseClamp(&ax, &ay);
+		
+		mx = ax * speed * mouseSpeedX;	
+		my = ay * speed * mouseSpeedY;		
+	}
+	#endif
+
+	//extern short cg_crossHairStatus;
+#ifdef AUTOAIM
+	int g_lastFireTime = 0;
+	short cg_crossHairStatus = 0;
+	if (ge) {
+		g_lastFireTime = ge->GetLastFireTime();
+		cg_crossHairStatus = ge->GetCrossHairStatus();
+	}
+#endif
+	const float m_hoverSensitivity = 0.4f;
+	if (cg_crossHairStatus == 1)
+	{
+		mx *= m_hoverSensitivity;
+		my *= m_hoverSensitivity;
+	}
+#else
+	// allow mouse smoothing
+	if ( m_filter->integer ) {
+		mx = ( cl.mouseDx[0] + cl.mouseDx[1] ) * 0.5;
+		my = ( cl.mouseDy[0] + cl.mouseDy[1] ) * 0.5;
+	} else {
+		mx = cl.mouseDx[cl.mouseIndex];
+		my = cl.mouseDy[cl.mouseIndex];
+	}
+#endif
 
 	cl.mouseIndex ^= 1;
 	cl.mouseDx[cl.mouseIndex] = 0;
@@ -557,9 +621,51 @@ void CL_MouseMove( usercmd_t *cmd ) {
 	}
 
 	mx *= accelSensitivity;
-	my *= accelSensitivity;
+	#ifdef PANDORA
+	my *= accelSensitivity*0.5f;	// lower acceleration on Y axis
+	#else
+	my *= accelSensitivity*2.0f;
+	#endif
 
 	if (!mx && !my) {
+#ifdef AUTOAIM
+		// If there was a movement but no change in angles then start auto-leveling the camera
+		//extern int g_lastFireTime;
+		float autolevelSpeed = 0.03f;
+
+		if (cg_crossHairStatus != 1 &&							// Not looking at an enemy
+			cl.joystickAxis[AXIS_FORWARD] &&					// Moving forward/backward
+			cl.frame.ps.groundEntityNum != ENTITYNUM_NONE &&	// Not in the air
+			Cvar_VariableIntegerValue("cl_autolevel") &&		// Autolevel is turned on
+			g_lastFireTime < Sys_Milliseconds() - 1000)			// Haven't fired recently
+		{
+			float normAngle = -SHORT2ANGLE(cl.frame.ps.delta_angles[PITCH]);
+			// The adjustment to normAngle below is meant to add or remove some multiple
+			// of 360, so that normAngle is within 180 of viewangles[PITCH]. It should
+			// be correct.
+			int diff = (int)(cl.viewangles[PITCH] - normAngle);
+			if (diff > 180)
+				normAngle += 360.0f * ((diff+180) / 360);
+			else if (diff < -180)
+				normAngle -= 360.0f * ((-diff+180) / 360);
+
+			if (Cvar_VariableIntegerValue("cg_thirdperson") == 1)
+			{
+//				normAngle += 10;	// Removed by BTO, 2003/05/14, I hate it
+				autolevelSpeed *= 1.5f;
+			}
+			if (cl.viewangles[PITCH] > normAngle)
+			{
+				cl.viewangles[PITCH] -= autolevelSpeed * speed;
+				if (cl.viewangles[PITCH] < normAngle) cl.viewangles[PITCH] = normAngle;
+			}
+			else if (cl.viewangles[PITCH] < normAngle)
+			{
+				cl.viewangles[PITCH] += autolevelSpeed * speed;
+				if (cl.viewangles[PITCH] > normAngle) cl.viewangles[PITCH] = normAngle;
+			}
+		}
+#endif
 		return;
 	}
 
@@ -579,7 +685,11 @@ void CL_MouseMove( usercmd_t *cmd ) {
 
 	if ( (in_mlooking || cl_freelook->integer) && !in_strafe.active ) {
 		// VVFIXME - This is supposed to be a CVAR
+#ifdef AUTOAIM
+		const float cl_pitchSensitivity = 0.5f;
+#else
 		const float cl_pitchSensitivity = 1.0f;
+#endif
 		if ( cl_mPitchOverride )
 		{
 			if ( pitch > 0 )

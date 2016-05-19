@@ -41,6 +41,11 @@ cvar_t *com_maxfps;
 cvar_t *com_maxfpsMinimized;
 cvar_t *com_maxfpsUnfocused;
 
+#ifdef AUTOAIM
+int *g_plastFireTime;
+short *cg_pcrossHairStatus;
+#endif
+
 /*
 =================
 Sys_SetBinaryPath

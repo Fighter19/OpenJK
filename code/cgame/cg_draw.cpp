@@ -2541,6 +2541,9 @@ CROSSHAIR
 CG_DrawCrosshair
 =================
 */
+#ifdef AUTOAIM
+short cg_crossHairStatus = 0;
+#endif
 static void CG_DrawCrosshair( vec3_t worldPoint )
 {
 	float		w, h;
@@ -2560,6 +2563,10 @@ static void CG_DrawCrosshair( vec3_t worldPoint )
 		//not while scoped
 		return;
 	}
+	
+#ifdef AUTOAIM
+	cg_crossHairStatus = 0;
+#endif
 
 	//set color based on what kind of ent is under crosshair
 	if ( g_crosshairEntNum >= ENTITYNUM_WORLD )
@@ -2588,6 +2595,9 @@ static void CG_DrawCrosshair( vec3_t worldPoint )
 			}
 			else if ( g_entities[0].client && g_entities[0].client->playerTeam == TEAM_FREE )
 			{//evil player: everyone is red
+#ifdef AUTOAIM
+				cg_crossHairStatus = 1;
+#endif
 				//Enemies are red
 				ecolor[0] = 1.0f;//R
 				ecolor[1] = 0.1f;//G
@@ -2609,6 +2619,9 @@ static void CG_DrawCrosshair( vec3_t worldPoint )
 			}
 			else
 			{
+#ifdef AUTOAIM
+				cg_crossHairStatus = 1;
+#endif
 				//Enemies are red
 				ecolor[0] = 1.0f;//R
 				ecolor[1] = 0.1f;//G
@@ -2628,6 +2641,9 @@ static void CG_DrawCrosshair( vec3_t worldPoint )
 			else
 			{
 				// hostile ones are red
+#ifdef AUTOAIM
+				cg_crossHairStatus = 1;
+#endif
 				ecolor[0] = 1.0;//R
 				ecolor[1] = 0.0;//G
 				ecolor[2] = 0.0;//B
@@ -2636,12 +2652,18 @@ static void CG_DrawCrosshair( vec3_t worldPoint )
 		else if ( crossEnt->s.weapon == WP_TRIP_MINE )
 		{
 			// tripmines are red
+#ifdef AUTOAIM
+			cg_crossHairStatus = 1;
+#endif
 			ecolor[0] = 1.0;//R
 			ecolor[1] = 0.0;//G
 			ecolor[2] = 0.0;//B
 		}
 		else if ( (crossEnt->flags&FL_RED_CROSSHAIR) )
 		{//special case flagged to turn crosshair red
+#ifdef AUTOAIM
+			cg_crossHairStatus = 1;
+#endif
 			ecolor[0] = 1.0;//R
 			ecolor[1] = 0.0;//G
 			ecolor[2] = 0.0;//B

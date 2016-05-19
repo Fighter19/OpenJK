@@ -298,6 +298,10 @@ if(BuildPortableVersion)
 	set(SharedDefines ${SharedDefines} "_PORTABLE_VERSION")
 endif()
 
+if(AutoAim)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DAUTOAIM")
+endif()
+
 
 
 
